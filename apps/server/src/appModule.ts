@@ -6,6 +6,7 @@ import { BrowseController } from '@/fs/browseController.js'
 import { HealthController } from '@/health/healthController.js'
 import { LibrariesController } from '@/libraries/librariesController.js'
 import { LibrariesRepository } from '@/libraries/librariesRepository.js'
+import { FavouritesController } from '@/media/favouritesController.js'
 import { MediaController } from '@/media/mediaController.js'
 import { MediaRepository } from '@/media/mediaRepository.js'
 import { ScannerService } from '@/scanner/scannerService.js'
@@ -17,7 +18,13 @@ export class AppModule {
   static register(config: ServerConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [LibrariesController, MediaController, BrowseController, HealthController],
+      controllers: [
+        LibrariesController,
+        MediaController,
+        FavouritesController,
+        BrowseController,
+        HealthController,
+      ],
       providers: [
         { provide: SERVER_CONFIG, useValue: config },
         DatabaseService,

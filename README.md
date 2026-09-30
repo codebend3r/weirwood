@@ -8,6 +8,8 @@ A light, self-hosted video library and player. Point it at folders of videos; it
 2. `docker compose up -d --build` (or `bun run docker:up`).
 3. Open `http://<host>:8484`, choose **Add library**, and pick folders under `/media` with the folder browser.
 
+Deleting a video from the app removes the file, so leave `:ro` off any mount where that should work. On a read-only mount the app keeps the video and says why.
+
 The index and thumbnails live in `./data` (mounted at `/config`). The image runs as the unprivileged `node` user (1000:1000); on a Synology, set `user:` in the compose file to the owner of `./data`.
 
 ## How playback works
@@ -32,6 +34,10 @@ What that means in practice. Chrome and Firefox 156 were measured on a Mac with 
 Audio is the usual blocker: most remuxes and many WEB-DLs carry EAC3, DTS or TrueHD.
 
 Keyboard: `space` or `k` play/pause, `j`/`l` or arrows skip 10s, `f` fullscreen, `m` mute, `Esc` back to the library. Playback resumes where you stopped; the last 5% counts as finished.
+
+## Favourites and deleting
+
+Every card has a menu, from the button in its corner or a right click, with two actions. **Favourite** marks the video and lists it under **Favourites** in the side menu, most recently marked first, across every library. **Delete** asks first, then removes the file from disk and the video from the index, along with its thumbnail, progress and favourite. There is no undo.
 
 ## Thumbnails
 

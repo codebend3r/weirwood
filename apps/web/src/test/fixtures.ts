@@ -20,6 +20,7 @@ export const mediaItem = (overrides: Partial<MediaItem> = {}): MediaItem => ({
   thumbnail: 'ready',
   thumbnailVersion: 1,
   position: 0,
+  favourite: false,
   addedAt: '2026-09-27T00:00:00.000Z',
   ...overrides,
 })

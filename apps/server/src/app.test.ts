@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { NestFastifyApplication } from '@nestjs/platform-fastify'
@@ -292,6 +292,144 @@ describe('the media server', () => {
       })
       expect(current.scan.error).toBe('Could not read /nowhere/at/all.')
       expect(current.itemCount).toBe(2)
+    })
+
+    describe('favourites', () => {
+      const favourites = async (): Promise<MediaItem[]> =>
+        expectShape({
+          response: await app().inject({ method: 'GET', url: '/api/favourites' }),
+          guard: isMediaList,
+        })
+      const mark = async ({ id, favourite }: { id: number; favourite: boolean }) =>
+        app().inject({ method: 'PUT', url: `/api/media/${id}/favourite`, payload: { favourite } })
+
+      it('marks a video as a favourite and lists it', async () => {
+        const [movie] = await listMedia(library.id)
+        const marked = expectShape({
+          response: await mark({ id: movie?.id ?? -1, favourite: true }),
+          guard: isMediaItem,
+        })
+        expect(marked.favourite).toBe(true)
+        expect((await favourites()).map((item) => item.id)).toEqual([movie?.id])
+        expect((await listMedia(library.id))[0]?.favourite).toBe(true)
+      })
+
+      it('lists the most recently marked first, and forgets one that is unmarked', async () => {
+        const [movie, episode] = await listMedia(library.id)
+        await mark({ id: episode?.id ?? -1, favourite: true })
+        expect((await favourites()).map((item) => item.title)).toEqual([
+          'Show - S01E01',
+          'Big Buck Test 2008',
+        ])
+        const unmarked = expectShape({
+          response: await mark({ id: movie?.id ?? -1, favourite: false }),
+          guard: isMediaItem,
+        })
+        expect(unmarked.favourite).toBe(false)
+        expect((await favourites()).map((item) => item.id)).toEqual([episode?.id])
+      })
+
+      it('rejects a flag that is not a boolean', async () => {
+        const [movie] = await listMedia(library.id)
+        const response = await app().inject({
+          method: 'PUT',
+          url: `/api/media/${movie?.id}/favourite`,
+          payload: { favourite: 'yes' },
+        })
+        expect(response.statusCode).toBe(400)
+        expect(
+          (
+            await app().inject({
+              method: 'PUT',
+              url: '/api/media/999999/favourite',
+              payload: { favourite: true },
+            })
+          ).statusCode,
+        ).toBe(404)
+      })
+    })
+
+    describe('deleting a video', () => {
+      const indexed = async (title: string): Promise<MediaItem> => {
+        await app().inject({ method: 'POST', url: `/api/libraries/${library.id}/scan` })
+        await settle(library.id)
+        const item = (await listMedia(library.id)).find((entry) => entry.title === title)
+        if (!item) throw new Error(`${title} was not indexed`)
+        return item
+      }
+
+      it('removes the file from disk along with its row, thumbnail and favourite', async () => {
+        const path = join(state.media, 'Movies', 'Doomed.mp4')
+        await encodeClip({ path, seconds: 2 })
+        const doomed = await indexed('Doomed')
+        await app().inject({
+          method: 'PUT',
+          url: `/api/media/${doomed.id}/favourite`,
+          payload: { favourite: true },
+        })
+        const thumbnail = app().get(ThumbnailService).pathFor(doomed.id)
+        await expect(stat(thumbnail)).resolves.toBeTruthy()
+
+        const response = await app().inject({ method: 'DELETE', url: `/api/media/${doomed.id}` })
+        expect(response.statusCode).toBe(204)
+        await expect(stat(path)).rejects.toThrow()
+        await expect(stat(thumbnail)).rejects.toThrow()
+        expect(
+          (await app().inject({ method: 'GET', url: `/api/media/${doomed.id}` })).statusCode,
+        ).toBe(404)
+        expect(
+          (await app().inject({ method: 'DELETE', url: `/api/media/${doomed.id}` })).statusCode,
+        ).toBe(404)
+        const listed = expectShape({
+          response: await app().inject({ method: 'GET', url: '/api/favourites' }),
+          guard: isMediaList,
+        })
+        expect(listed.map((item) => item.id)).not.toContain(doomed.id)
+        const current = expectShape({
+          response: await app().inject({ method: 'GET', url: `/api/libraries/${library.id}` }),
+          guard: isLibrary,
+        })
+        expect(current.itemCount).toBe(2)
+      })
+
+      it('drops the row when the file is already gone', async () => {
+        const path = join(state.media, 'Movies', 'Vanished.mp4')
+        await encodeClip({ path, seconds: 2 })
+        const vanished = await indexed('Vanished')
+        await rm(path)
+        const response = await app().inject({ method: 'DELETE', url: `/api/media/${vanished.id}` })
+        expect(response.statusCode).toBe(204)
+        expect((await listMedia(library.id)).map((item) => item.id)).not.toContain(vanished.id)
+      })
+
+      // Root can unlink from any folder, so the failure cannot be staged there.
+      it.skipIf(process.getuid?.() === 0)(
+        'keeps the video when the file cannot be removed',
+        async () => {
+          const locked = join(state.media, 'TV', 'Locked')
+          const path = join(locked, 'Kept.mp4')
+          await encodeClip({ path, seconds: 2 })
+          const kept = await indexed('Kept')
+          await chmod(locked, 0o555)
+          try {
+            const response = await app().inject({ method: 'DELETE', url: `/api/media/${kept.id}` })
+            expect(response.statusCode).toBe(500)
+            expect(response.json()).toMatchObject({
+              message: expect.stringContaining('Could not delete the file'),
+            })
+            await expect(stat(path)).resolves.toBeTruthy()
+            expect(
+              (await app().inject({ method: 'GET', url: `/api/media/${kept.id}` })).statusCode,
+            ).toBe(200)
+          } finally {
+            await chmod(locked, 0o755)
+          }
+          // Writable again, the same request goes through.
+          const retry = await app().inject({ method: 'DELETE', url: `/api/media/${kept.id}` })
+          expect(retry.statusCode).toBe(204)
+          await rm(locked, { recursive: true, force: true })
+        },
+      )
     })
   })
 

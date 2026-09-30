@@ -67,4 +67,28 @@ describe('createApiClient', () => {
     const { client } = clientReturning(respond({}))
     expect(client.fileUrl(5)).toBe('http://nas:8484/api/media/5/file')
   })
+
+  it('marks a favourite and returns the updated item', async () => {
+    const item = mediaItem({ id: 4, favourite: true })
+    const { client, calls } = clientReturning(respond({ body: item }))
+    await expect(client.setFavourite({ id: 4, favourite: true })).resolves.toEqual(item)
+    expect(calls[0]?.url).toBe('http://nas:8484/api/media/4/favourite')
+    expect(calls[0]?.init).toMatchObject({ method: 'PUT', body: '{"favourite":true}' })
+  })
+
+  it('lists favourites across every library', async () => {
+    const item = mediaItem({ favourite: true })
+    const { client, calls } = clientReturning(respond({ body: [item] }))
+    await expect(client.listFavourites()).resolves.toEqual([item])
+    expect(calls[0]?.url).toBe('http://nas:8484/api/favourites')
+  })
+
+  it('deletes a video', async () => {
+    const { client, calls } = clientReturning(respond({ status: 204 }))
+    await client.deleteMedia(9)
+    expect(calls[0]).toMatchObject({
+      url: 'http://nas:8484/api/media/9',
+      init: { method: 'DELETE' },
+    })
+  })
 })

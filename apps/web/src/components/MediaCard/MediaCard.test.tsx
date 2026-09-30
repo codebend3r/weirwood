@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MediaCard } from '@/components/MediaCard/MediaCard'
 import { setBrowserSupport } from '@/test/canPlay'
 import { mediaItem } from '@/test/fixtures'
@@ -23,6 +24,26 @@ describe('MediaCard', () => {
       'title',
       "Dolby Digital Plus audio isn't supported here.",
     )
+  })
+
+  it('offers Favourite and Delete from its menu', async () => {
+    renderWithProviders(<MediaCard media={mediaItem()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Options for Busboys (2026)' }))
+    expect(screen.getByRole('menuitem', { name: 'Favourite' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('opens the same menu on a right click', () => {
+    renderWithProviders(<MediaCard media={mediaItem()} />)
+    fireEvent.contextMenu(screen.getByRole('link', { name: 'Busboys (2026)' }))
+    expect(screen.getByRole('menu', { name: 'Options for Busboys (2026)' })).toBeInTheDocument()
+  })
+
+  it('marks a favourite and offers to remove it', async () => {
+    renderWithProviders(<MediaCard media={mediaItem({ favourite: true })} />)
+    expect(screen.getByText('Favourite')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Options for Busboys (2026)' }))
+    expect(screen.getByRole('menuitem', { name: 'Remove favourite' })).toBeInTheDocument()
   })
 
   it('shows a placeholder until the thumbnail exists', () => {

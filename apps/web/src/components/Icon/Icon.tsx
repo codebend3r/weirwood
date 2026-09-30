@@ -10,6 +10,8 @@ export type IconName =
   | 'copy'
   | 'search'
   | 'trash'
+  | 'more'
+  | 'heart'
 
 const PATHS: Record<IconName, string> = {
   back: 'M15 18l-6-6 6-6',
@@ -23,6 +25,8 @@ const PATHS: Record<IconName, string> = {
   copy: 'M9 9h10v10H9zM5 15V5h10',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  more: 'M12 5.5v.5M12 12v.5M12 18.5v.5',
+  heart: 'M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8 4.5 4.5 0 0 1 8 2.8c0 5.7-8 11-8 11z',
 }
 
 /** Line icons. Decorative by default: pair them with text or an aria-label on the control. */

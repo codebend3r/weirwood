@@ -59,12 +59,14 @@ type MediaRow = {
   thumbnail: string
   added_at: string
   position: number | null
+  favourited_at: string | null
 }
 
 const SELECT_MEDIA = `
-  SELECT m.*, p.position
+  SELECT m.*, p.position, f.added_at AS favourited_at
     FROM media m
-    LEFT JOIN playback_progress p ON p.media_id = m.id`
+    LEFT JOIN playback_progress p ON p.media_id = m.id
+    LEFT JOIN favourites f ON f.media_id = m.id`
 
 const toRecord = (row: MediaRow): MediaRecord => ({
   id: row.id,
@@ -88,6 +90,7 @@ const toRecord = (row: MediaRow): MediaRecord => ({
   thumbnailVersion: row.mtime_ms,
   mtimeMs: row.mtime_ms,
   position: row.position ?? 0,
+  favourite: row.favourited_at != null,
   probed: row.probed === 1,
   probeError: row.probe_error,
   addedAt: row.added_at,
@@ -137,6 +140,30 @@ export class MediaRepository {
   get(id: number): MediaRecord | null {
     const row = this.db.prepare<[number], MediaRow>(`${SELECT_MEDIA} WHERE m.id = ?`).get(id)
     return row ? toRecord(row) : null
+  }
+
+  /** Every favourite across every library, most recently marked first. */
+  listFavourites(): MediaRecord[] {
+    return this.db
+      .prepare<[], MediaRow>(
+        `${SELECT_MEDIA} WHERE f.media_id IS NOT NULL ORDER BY f.added_at DESC, m.id DESC`,
+      )
+      .all()
+      .map(toRecord)
+  }
+
+  /** Marking a favourite again keeps its original time, so the list does not reshuffle. */
+  setFavourite({ id, favourite }: { id: number; favourite: boolean }): void {
+    if (!favourite) {
+      this.db.prepare('DELETE FROM favourites WHERE media_id = ?').run(id)
+      return
+    }
+    this.db
+      .prepare(
+        `INSERT INTO favourites (media_id, added_at) VALUES (?, ?)
+         ON CONFLICT (media_id) DO NOTHING`,
+      )
+      .run(id, new Date().toISOString())
   }
 
   idsForLibrary(libraryId: number): number[] {

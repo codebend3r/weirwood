@@ -173,6 +173,21 @@ export const createApiClient = ({
       await send({ path: `/api/media/${id}/progress`, method: 'PUT', body: { position } })
     },
 
+    setFavourite: ({ id, favourite }: { id: number; favourite: boolean }): Promise<MediaItem> =>
+      expect({
+        request: send({ path: `/api/media/${id}/favourite`, method: 'PUT', body: { favourite } }),
+        guard: isMediaItem,
+      }),
+
+    /** Every favourite across every library, most recently favourited first. */
+    listFavourites: (): Promise<MediaItem[]> =>
+      expect({ request: send({ path: '/api/favourites' }), guard: isMediaList }),
+
+    /** Removes the file from disk and the video from its library. */
+    deleteMedia: async (id: number): Promise<void> => {
+      await send({ path: `/api/media/${id}`, method: 'DELETE' })
+    },
+
     browse: (path?: string): Promise<DirectoryListing> => {
       const query = path ? `?${toQueryString({ path })}` : ''
       return expect({

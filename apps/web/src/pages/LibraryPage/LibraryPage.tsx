@@ -4,7 +4,7 @@ import { useId, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Button, ButtonLink } from '@/components/Button/Button'
 import { LibraryDialog } from '@/components/LibraryDialog/LibraryDialog'
-import { MediaCard } from '@/components/MediaCard/MediaCard'
+import { MediaGrid } from '@/components/MediaGrid/MediaGrid'
 import { ScanStatus } from '@/components/ScanStatus/ScanStatus'
 import { api } from '@/lib/api'
 import { queryKeys } from '@/lib/queryClient'
@@ -132,11 +132,7 @@ export const LibraryPage = () => {
       {emptyState ? (
         <p className={styles.message}>{emptyState}</p>
       ) : (
-        <ul className={styles.grid} aria-busy={media.isFetching && !media.data}>
-          {items.map((item) => (
-            <MediaCard key={item.id} media={item} />
-          ))}
-        </ul>
+        <MediaGrid items={items} busy={media.isFetching && !media.data} />
       )}
 
       {editing && <LibraryDialog library={library.data} onClose={() => setEditing(false)} />}

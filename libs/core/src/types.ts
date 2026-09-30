@@ -64,6 +64,7 @@ export type MediaItem = {
   thumbnailVersion: number
   /** Where playback last stopped, in seconds; 0 when never started or finished. */
   position: number
+  favourite: boolean
   addedAt: string
 }
 

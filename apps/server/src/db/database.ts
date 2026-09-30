@@ -60,6 +60,12 @@ const MIGRATIONS: readonly string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  `
+  CREATE TABLE favourites (
+    media_id INTEGER PRIMARY KEY REFERENCES media (id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL
+  );
+  `,
 ]
 
 const migrate = (db: Sqlite.Database): void => {
@@ -72,7 +78,7 @@ const migrate = (db: Sqlite.Database): void => {
   })
 }
 
-/** The one SQLite connection: the library index, media metadata, and playback progress. */
+/** The one SQLite connection: the library index, media metadata, playback progress and favourites. */
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   readonly db: Sqlite.Database

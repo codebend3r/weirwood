@@ -82,6 +82,7 @@ export const isMediaItem = (value: unknown): value is MediaItem =>
   isThumbnailState(value.thumbnail) &&
   isNumber(value.thumbnailVersion) &&
   isNumber(value.position) &&
+  typeof value.favourite === 'boolean' &&
   isString(value.addedAt)
 
 export const isMediaList = arrayOf(isMediaItem)
